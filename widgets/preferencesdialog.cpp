@@ -69,8 +69,12 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) :
             this, SLOT(formViewFontSizeComboChanged()));
     connect(ui->formViewFontCombo, &QFontComboBox::currentTextChanged,
             this, &PreferencesDialog::formViewFontComboChanged);
+    connect(ui->unusedSpaceStrategyComboBox, SIGNAL(activated(int)),
+            this, SLOT(unusedSpaceStrategyComboChanged()));
     connect(ui->tableRowSizeSpinBox, SIGNAL(editingFinished()),
             this, SLOT(tableViewRowSizeSpinChanged()));
+    connect(ui->columnWidthComboBox, SIGNAL(activated(int)),
+            this, SLOT(columnWidthComboChanged()));
     connect(ui->cacheImagesTableViewCheckBox, SIGNAL(stateChanged(int)),
             this, SLOT(cacheImagesTableViewCheckBoxChanged()));
     connect(ui->hideImagesTableViewCheckBox, &QCheckBox::stateChanged,
@@ -227,11 +231,33 @@ void PreferencesDialog::formViewFontComboChanged()
     m_appearanceChanged = true;
 }
 
+void PreferencesDialog::unusedSpaceStrategyComboChanged()
+{
+    bool pruneUnusedSpace = ui->unusedSpaceStrategyComboBox->currentIndex();
+    m_settingsManager->saveProperty("pruneEmptyRowsCols", "formView", pruneUnusedSpace);
+
+    if (pruneUnusedSpace) {
+        QMessageBox::information(this, tr("Unused space"),
+                                 tr("Already existing unused space will be removed the next time a field is rearranged."),
+                                 QMessageBox::Ok);
+    }
+
+    m_appearanceChanged = true;
+}
+
 void PreferencesDialog::tableViewRowSizeSpinChanged()
 {
     int rows = ui->tableRowSizeSpinBox->value();
 
     m_settingsManager->saveProperty("rowSize", "tableView", rows);
+
+    m_appearanceChanged = true;
+}
+
+void PreferencesDialog::columnWidthComboChanged()
+{
+    int mode = ui->columnWidthComboBox->currentIndex();
+    m_settingsManager->saveProperty("columnResizeMode", "tableView", mode);
 
     m_appearanceChanged = true;
 }
@@ -360,11 +386,23 @@ void PreferencesDialog::loadSettings()
         ui->formViewFontCombo->setCurrentText(fontFamily);
     }
 
+    //prune empty rows/cols in form view
+    bool pruneEmptySpace = m_settingsManager->restoreProperty(
+                "pruneEmptyRowsCols", "formView").toBool();
+    ui->unusedSpaceStrategyComboBox->setCurrentIndex(pruneEmptySpace ? 1 : 0);
+
     //table view row size
     int tableRowSize =  m_settingsManager->restoreProperty(
                 "rowSize", "tableView").toInt();
     if (tableRowSize) {
         ui->tableRowSizeSpinBox->setValue(tableRowSize);
+    }
+
+    //table view column resize mode
+    int tableColumnWidthMode =  m_settingsManager->restoreProperty(
+                "columnResizeMode", "tableView").toInt();
+    if (tableColumnWidthMode) {
+        ui->columnWidthComboBox->setCurrentIndex(tableColumnWidthMode);
     }
 
     //table view img caching
